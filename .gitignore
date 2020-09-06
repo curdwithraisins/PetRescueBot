@@ -1,3 +1,4 @@
 .env
 .idea/
 docker/data/
+src/__pycache__/
