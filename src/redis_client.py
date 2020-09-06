@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import redis
+from json import dumps, loads
 from utils import get_env
 
 class RedisClient(redis.Redis):
@@ -9,7 +10,10 @@ class RedisClient(redis.Redis):
         password = get_env("REDIS_PASSWORD")
         super().__init__(host, port='6379', db='0', password=password)
 
+    def add_user(self, user):
+        super().lpush('users', dumps(user))
+
     def get_users(self):
-            length = super().llen('users')
-            val = super().lrange('users', 0, length)
-            return val
+            return [ loads(i) for i in super().lrange('users', 0, super().llen('users')) ]
+
+redis_client = RedisClient()
