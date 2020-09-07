@@ -10,10 +10,19 @@ class RedisClient(redis.Redis):
         password = get_env("REDIS_PASSWORD")
         super().__init__(host, port='6379', db='0', password=password)
 
-    def add_user(self, user):
-        super().lpush('users', dumps(user))
+    def add_user(self, city, chat_id):
+        super().lpush(city, chat_id)
 
-    def get_users(self):
-            return [ loads(i) for i in super().lrange('users', 0, super().llen('users')) ]
+    def get_users(self, city):
+        return [ loads(i) for i in super().lrange(city, 0, super().llen(city)) ]
+
+    def get_cities(self):
+        return [ i.decode('UTF-8') for i in super().lrange('cities', 0, super().llen('cities')) ]
+
+    def get_accounts(self):
+        return [ loads(i) for i in super().lrange('accounts', 0, super().llen('accounts')) ]
+
+    def update_account(self, idx, data):
+        super().lset('accounts', idx, dumps(data))
 
 redis_client = RedisClient()
