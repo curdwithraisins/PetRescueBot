@@ -11,10 +11,10 @@ class RedisClient(redis.Redis):
         super().__init__(host, port='6379', db='0', password=password)
 
     def add_user(self, city, chat_id):
-        super().lpush(city, chat_id)
+        super().sadd(city, chat_id)
 
     def get_users(self, city):
-        return [ loads(i) for i in super().lrange(city, 0, super().llen(city)) ]
+        return [ loads(i) for i in super().smembers(city) ]
 
     def get_cities(self):
         return [ i.decode('UTF-8') for i in super().lrange('cities', 0, super().llen('cities')) ]
