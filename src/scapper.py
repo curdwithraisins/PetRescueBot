@@ -10,6 +10,7 @@ def scrap(city):
     updates = []
     for acc_idx, account in enumerate(accounts):
         if account['city'] == city:
+            print(account)
             posts = instagram.get_medias(account['name'], 10)
 
             for post_idx, post in enumerate(posts):

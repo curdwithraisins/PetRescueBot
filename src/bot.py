@@ -5,12 +5,13 @@ import time
 import telegram
 
 from redis_client import redis_client
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove, InputMediaPhoto
 from telegram.ext import Updater, CommandHandler, ConversationHandler, CallbackQueryHandler, MessageHandler, Filters
 from utils import get_env
 from scapper import scrap
 
-CITY, KIND, GENDER, DESCRIPTION, PHOTO = range(5)
+adoptions = {}
+CITY, KIND, GENDER, NAME, DESCRIPTION, PHOTO, CONTACT = range(7)
 
 def start(update, context):
     keyboard = [[InlineKeyboardButton("Киев", callback_data='Kiev'),
@@ -23,6 +24,7 @@ def start(update, context):
     update.message.reply_text('Выберите город:', reply_markup=reply_markup)
 
 def cancel(update, context):
+    del adoptions[update.message.from_user]
     update.message.reply_text('Ждем еще!', reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END    
 
@@ -35,32 +37,75 @@ def adopt(update, context):
     return CITY
 
 def city(update, context):
-    reply_keyboard = [['Собаку', 'Кота', 'Другое']]
+    adoptions[update.message.from_user] = {}
+    adoptions[update.message.from_user]['city'] = update.message.text
+    reply_keyboard = [['Собака', 'Кот', 'Другое']]
     update.message.reply_text("Отлично! А теперь о любимце! Кого будем отдавать?", 
         reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
     return KIND
 
 def kind(update, context):
+    adoptions[update.message.from_user]['kind'] = update.message.text
     reply_keyboard = [['Мальчик', 'Девочка', 'Не понятно(']]
-    update.message.reply_text("Отлично! А теперь о любимце! Кого будем отдавать?", 
+    update.message.reply_text("А какой пол?", 
         reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
     return GENDER
 
 def gender(update, context):
+    adoptions[update.message.from_user]['gender'] = update.message.text
+    update.message.reply_text("Уже придумали имя? Можете поделиться им тоже!")
+    return NAME
+
+def name(update, context):
+    adoptions[update.message.from_user]['name'] = update.message.text
+    update.message.reply_text("Как с вами связаться? Вы можете добавить номер телефона, "
+        "аккаунт в инстаграме, телеграме или любой другой способ! Если не хотите, введите /skip")
+    return CONTACT
+
+def contact(update, context):
+    adoptions[update.message.from_user]['contact'] = update.message.text
     update.message.reply_text("Добавим немного информации о пушистике (или не очень), "
     "чтобы новые родители лучше узнали его. Можно милую историю появления или спасения :3")
-    return DESCRIPTION
+    return DESCRIPTION    
+
+def skip_contact(update, context):
+    update.message.reply_text("Ладно :) Добавим немного информации о пушистике (или не очень), "
+    "чтобы новые родители лучше узнали его. Можно милую историю появления или спасения :3")
+    return DESCRIPTION    
 
 def description(update, context):
+    adoptions[update.message.from_user]['description'] = update.message.text
     update.message.reply_text("И пару фото, чтобы было лучше понятней, как выглядит ваше чудо)")
     return PHOTO
 
 def photo(update, context):
-    photo_file = update.message.photo[-1].get_file()
-    print(photo_file['file_path'])
+    photo_file = update.message.photo[-1]
+    if not 'photo' in adoptions[update.message.from_user]:
+        adoptions[update.message.from_user]['photo'] = []
+    adoptions[update.message.from_user]['photo'].append(photo_file['file_id'])
+
+    if (len(adoptions[update.message.from_user]['photo']) < 5):
+        update.message.reply_text('Еще фото? Если хватит, введи /skip!')        
+        return PHOTO
+    
+    skip_photo(update, context)
+
+def skip_photo(update, context):
+    media_group = []
+    for file_id in adoptions[update.message.from_user]['photo']:
+        media_group.append(InputMediaPhoto(media=file_id))
+
     update.message.reply_text('Класс! Сейчас запостим и начнется поиск родителей! Спасибо <3')
+    update.message.reply_text(text=parse(adoptions[update.message.from_user]), parse_mode=telegram.ParseMode.MARKDOWN)
+    context.bot.send_media_group(update.message.chat.id, media=media_group)
 
     return ConversationHandler.END
+
+def parse(data):
+    content = ("*Новый питомец ищет дом!*"
+        "\n\U0001F4CD {city}\n\U0001F43E {kind}\n\U0001F536 {gender}\n\U0001F4AC {name}\n\U0001F4DE {contact}\n\n{desc}\n\n"
+            ).format(city=data['city'], kind=data['kind'], gender=data['gender'], name=data['name'], contact=data['contact'], desc=data['description'])
+    return content
 
 def select(update, context):
     query = update.callback_query
@@ -90,15 +135,17 @@ def main():
         entry_points=[CommandHandler('adopt', adopt)],
         states={
             CITY: [MessageHandler(Filters.regex('^(Киев|Харьков|Днепр|Одессы|Львов|Везде)$'), city)],
-            KIND: [MessageHandler(Filters.regex('^(Собаку|Кота|Другое)$'), kind)],
+            KIND: [MessageHandler(Filters.regex('^(Собака|Кот|Другое)$'), kind)],
             GENDER: [MessageHandler(Filters.regex('^(Мальчик|Девочка)$'), gender)],
+            NAME: [MessageHandler(Filters.text, name)],
+            CONTACT: [MessageHandler(Filters.text, contact), CommandHandler('skip', skip_contact)],
             DESCRIPTION: [MessageHandler(Filters.text, description)],
-            PHOTO: [MessageHandler(Filters.photo, photo)]
+            PHOTO: [MessageHandler(Filters.photo, photo), CommandHandler('skip', skip_photo)]
         },
         fallbacks=[CommandHandler('cancel', cancel)]
     ))
 
-    updater.job_queue.run_repeating(broadcast, 300, 0)
+    # updater.job_queue.run_repeating(broadcast, 300, 0)
 
     updater.start_polling()
 
