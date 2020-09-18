@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-from redis_client import redis_client
+from client import client
 from igramscraper.instagram import Instagram
 
 instagram = Instagram()
 
 def scrap(city):
-    accounts = redis_client.get_accounts()
+    accounts = client.get_accounts()
     updates = []
     for acc_idx, account in enumerate(accounts):
         if account['city'] == city:
@@ -22,6 +22,6 @@ def scrap(city):
             updates.extend(posts)
             if (len(posts)):
                 account['timestamp'] = posts[0].created_time
-            redis_client.update_account(acc_idx, account)
+            client.update_account(acc_idx, account)
     
     return updates
