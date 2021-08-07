@@ -7,7 +7,7 @@ import telegram
 from client import client
 from telegram.ext import Updater, CommandHandler, ConversationHandler, CallbackQueryHandler, MessageHandler, Filters
 from utils import get_env
-from scapper import scrap
+# from scapper import scrap
 
 adoptions = {}
 CITY, KIND, GENDER, NAME, DESCRIPTION, PHOTO, CONTACT = range(7)
@@ -21,9 +21,9 @@ class Bot:
             dispatcher.add_handler(ConversationHandler(
                 entry_points=[MessageHandler(Filters.regex("Найти"), adopt)],
                 states={
-                    CITY: [MessageHandler(Filters.regex('^(Киев|Харьков|Днепр|Одессы|Львов|Везде)$'), city)],
+                    CITY: [MessageHandler(Filters.regex('^(Киев|Харьков|Днепр|Одесса|Львов|Везде)$'), city)],
                     KIND: [MessageHandler(Filters.regex('^(Собака|Кот|Другое)$'), kind)],
-                    GENDER: [MessageHandler(Filters.regex('^(Мальчик|Девочка)$'), gender)],
+                    GENDER: [MessageHandler(Filters.regex('^(Мальчик|Девочка|Несколько)$'), gender)],
                     NAME: [MessageHandler(Filters.text, name)],
                     CONTACT: [MessageHandler(Filters.text, contact)],
                     DESCRIPTION: [MessageHandler(Filters.text, description)],
@@ -142,8 +142,7 @@ def photo(update, context):
         reply_markup = telegram.ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
         update.message.reply_text('Еще фото? Если хватит, то можем на этом закончить!', reply_markup=reply_markup)        
         return PHOTO
-    elif
-        skip_photo(update, context)
+    else: skip_photo(update, context)
 
 
 def skip_photo(update, context):
