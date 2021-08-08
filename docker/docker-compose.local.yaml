@@ -9,6 +9,20 @@ services:
       - "8000:8000"
     env_file:
       - ../.env  
+  postgres:
+    container_name: postgres
+    image: postgres:13.3-alpine
+    volumes:
+      - ./data/postgres:/var/lib/postgres/data
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=${POSTGRESQL_USERNAME}
+      - POSTGRES_PASSWORD=${POSTGRESQL_PASSWORD}
+      - POSTGRES_DB=${POSTGRESQL_DATABASE}
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    env_file:
+      - ../.env  
   redis:
     container_name: redis
     image: redis:6.0.7-alpine
